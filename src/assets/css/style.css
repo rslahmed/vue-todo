@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.btn_default {
+    @apply border border-gray-500 rounded px-3 py-1 text-sm
+}
+
+.btn_default:hover {
+    @apply bg-gray-200
+}

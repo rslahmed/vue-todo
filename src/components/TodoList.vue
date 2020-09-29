@@ -16,8 +16,6 @@
       :index="index" 
       :todo="todo"
       @removeTodo="removeTodo"
-      @enterEditingMode="enterEditingMode"
-      @cancleEditing="cancleEditing"
       />
     </div>
     <div class="todo_footer border-t border-gray-400 mt-3 pt-3 flex flex-row">
@@ -49,21 +47,21 @@
       >Active</button>
       <button
         class="btn_default"
-        :class="{'bg-gray-400': filter == 'complated'}"
-        @click="filter = 'complated'"
-      >Complated</button>
+        :class="{'bg-gray-400': filter == 'completed'}"
+        @click="filter = 'completed'"
+      >Completed</button>
       <button
         class="btn_default ml-auto"
-        v-show="anyComplated"
-        @click="clearComplated"
-      >Clear complated</button>
+        v-show="anyCompleted"
+        @click="clearCompleted"
+      >Clear completed</button>
     </div>
   </div>
 </template>
 
 <script>
 import TodoItem from "./TodoItem.vue";
-
+import TodoService from '@/services/TodoService.js'
 export default {
   name: "TodoList",
   components: {
@@ -72,28 +70,13 @@ export default {
   data() {
     return {
       todoTitle: "",
-      lastId: 3,
-      todos: [
-        {
-          id: 1,
-          title: "Go to store",
-          complated: false,
-          editing: false,
-        },
-        {
-          id: 2,
-          title: "Go to school",
-          complated: false,
-          editing: false,
-        },
-      ],
+      todos: [],
       filter: "all",
-      todoEditingCache: "",
     };
   },
   computed: {
     remaining() {
-      return this.todos.filter((todo) => !todo.complated).length;
+      return this.todos.filter((todo) => !todo.completed).length;
     },
     anyRemaining() {
       return this.remaining != 0;
@@ -101,54 +84,93 @@ export default {
     totalTodos() {
       return this.todos.length;
     },
-    anyComplated() {
-      return this.todos.filter((todo) => todo.complated).length;
+    anyCompleted() {
+      return this.todos.filter((todo) => todo.completed).length;
     },
     filteredTodos() {
       if (this.filter == "all") {
         return this.todos;
       } else if (this.filter == "active") {
-        return this.todos.filter((todo) => !todo.complated);
-      } else if (this.filter == "complated") {
-        return this.todos.filter((todo) => todo.complated);
+        return this.todos.filter((todo) => !todo.completed);
+      } else if (this.filter == "completed") {
+        return this.todos.filter((todo) => todo.completed);
       }
       return this.todos;
     },
   },
   methods: {
     addTodo() {
-      if (this.todoTitle == "") {
-        return;
-      }
-
-      let newTodo = {
-        id: this.lastId,
-        title: this.todoTitle,
-        complated: false,
-        editing: false,
-      };
-      this.todos.push(newTodo);
-      this.lastId++;
-      this.todoTitle = "";
+      if (this.todoTitle != "") {
+        let newTodo = {
+          title: this.todoTitle,
+          completed: false,
+        }
+        TodoService.addTodo(newTodo)
+        .then(response => {
+          this.todoTitle = "";
+          this.getApiTodo()
+        })
+        .catch(error => {
+          console.log(error.response)
+        })
+    }
     },
-    removeTodo(index) {
-      this.todos.splice(index, 1);
+    removeTodo(id) {
+      TodoService.deleteTodo(id)
+      .then(response => {
+        this.getApiTodo()
+      })
+      .catch(error => {
+        console.log(error.response)
+      })
     },
     checkAllTodo() {
-      this.todos.forEach((todo) => (todo.complated = event.target.checked));
+      if(this.anyRemaining){
+        this.todos.forEach((todo) => (todo.completed = true))
+        this.updateCompleteApi(true)
+      }else{
+        this.todos.forEach((todo) => (todo.completed = false))
+        this.updateCompleteApi(false)
+      }
+      this.todos.forEach((todo) => (todo.completed = event.target.checked))
     },
-    clearComplated() {
-      return (this.todos = this.todos.filter((todo) => !todo.complated));
+    clearCompleted() {
+      let data = this.todos.filter(todo => todo.completed).map(todo=> todo.id)
+      TodoService.clearCompleted({
+        ids: data
+      })
+      .then(response=>{
+          return (this.todos = this.todos.filter((todo) => !todo.completed))
+      })
+      .catch(error => {
+        console.log(error.response);
+      })
+      
     },
-    enterEditingMode(todo) {
-      todo.editing = true;
-      this.todoEditingCache = todo.title;
+    getApiTodo(){
+      return TodoService.getTodos()
+      .then(response => {
+          this.todos = response.data
+      })
+      .catch(error => {
+          console.log(error.response)
+      })
     },
-    cancleEditing(todo) {
-      todo.title = this.todoEditingCache;
-      todo.editing = false;
-    },
+    updateCompleteApi(data){
+      TodoService.checkAllTodo({
+        completed: data
+      })
+      .then(response => {
+          console.log(response.data)
+      })
+      .catch(error => {
+          console.log(error.response)
+      })
+    }
   },
+  created(){
+    this.getApiTodo()
+  }
 };
 </script>
 
